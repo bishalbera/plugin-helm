@@ -37,6 +37,32 @@ tasks.withType(JavaCompile).configureEach {
     options.compilerArgs.add("-parameters")
 }
 
+// plugin-git is published as a fat jar that declares its own tasks in
+// META-INF/services/io.kestra.core.models.Plugin and ships its own doc and icon. Bundled as-is,
+// Kestra's ServiceLoader-based plugin scanner would register Clone/Push/Sync* as plugin-helm
+// tasks, so those registration resources are stripped before the jar is bundled. Only the auth
+// model behind io.kestra.plugin.git.Clone is used, per the Git-sourcing design note in #18275.
+configurations {
+    gitPlugin
+}
+
+dependencies {
+    // Pinned to 2.x on purpose: plugin-git 3.x targets the Kestra 2.x platform and conflicts
+    // with the platform version this plugin builds against.
+    gitPlugin("io.kestra.plugin:plugin-git:2.0.11") { transitive = false }
+}
+
+def gitLibWithoutRegistrations = tasks.register("gitLibWithoutRegistrations", Jar) {
+    archiveClassifier.set("git-lib")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from({ configurations.gitPlugin.collect { zipTree(it) } }) {
+        exclude "META-INF/services/io.kestra.core.models.Plugin"
+        exclude "doc/io.kestra.plugin.git.md"
+        exclude "icons/io.kestra.plugin.git.svg"
+        exclude "META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA"
+    }
+}
+
 dependencies {
     // Platform
     annotationProcessor enforcedPlatform("io.kestra:platform:$kestraVersion")
@@ -50,6 +76,12 @@ dependencies {
     annotationProcessor group: "io.kestra", name: "processor", version: kestraVersion
     compileOnly group: "io.kestra", name: "core", version: kestraVersion
     compileOnly group: "io.kestra", name: "script", version: kestraVersion
+
+    // Kubernetes auth model, shared with plugin-kubernetes rather than reinvented
+    api "io.kestra.plugin:plugin-kubernetes-lib:1.0.2"
+
+    // Git-sourced charts and values delegate to plugin-git's auth model
+    implementation files(gitLibWithoutRegistrations)
 }
 
 
@@ -83,6 +115,9 @@ dependencies {
     testImplementation group: "io.kestra", name: "repository-memory", version: kestraVersion
     testImplementation group: "io.kestra", name: "runner-memory", version: kestraVersion
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
+
+    testImplementation "io.kestra.plugin:plugin-kubernetes-lib:1.0.2"
+    testImplementation files(gitLibWithoutRegistrations)
 
     // test
     testImplementation "org.junit.jupiter:junit-jupiter-engine"
