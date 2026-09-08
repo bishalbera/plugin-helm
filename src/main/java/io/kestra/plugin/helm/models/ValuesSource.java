@@ -1,9 +1,8 @@
 package io.kestra.plugin.helm.models;
 
-import java.nio.file.Path;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 
@@ -23,43 +22,23 @@ import lombok.extern.jackson.Jacksonized;
 @ToString
 @Schema(
     title = "A values file to pass to Helm",
-    description = "Either a plain path string relative to the working directory, or an object with a `git` block."
+    description = "A path relative to the task's working directory. To use a values file held in Git, clone it with `io.kestra.plugin.git.Clone` inside a `WorkingDirectory` and point this at the checkout."
 )
 public class ValuesSource {
     @Schema(
         title = "Path to a values file",
         description = "Relative to the task's working directory."
     )
+    @PluginProperty(group = "source")
     private Property<String> path;
-
-    @Schema(
-        title = "Values file sourced from Git"
-    )
-    private GitSource git;
 
     @JsonCreator
     public static ValuesSource of(String path) {
         return ValuesSource.builder().path(Property.ofValue(path)).build();
     }
 
-    public ResolvedValues resolve(RunContext runContext, int index) throws Exception {
-        String rPath = runContext.render(this.path).as(String.class).orElse(null);
-
-        if ((rPath == null) == (this.git == null)) {
-            throw new IllegalArgumentException("Each `valuesFrom` entry must set exactly one of `path` or `git`.");
-        }
-
-        if (this.git != null) {
-            Path checkout = this.git.checkout(runContext, "values-" + index);
-            return new ResolvedValues(
-                runContext.workingDir().path().relativize(checkout).toString(),
-                this.git.reference(runContext)
-            );
-        }
-
-        return new ResolvedValues(rPath, rPath);
-    }
-
-    public record ResolvedValues(String path, String reference) {
+    public String resolve(RunContext runContext) throws Exception {
+        return runContext.render(this.path).as(String.class)
+            .orElseThrow(() -> new IllegalArgumentException("Each `valuesFrom` entry requires a `path`."));
     }
 }
