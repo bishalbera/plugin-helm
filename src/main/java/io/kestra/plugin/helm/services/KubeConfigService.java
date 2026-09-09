@@ -1,5 +1,6 @@
 package io.kestra.plugin.helm.services;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,7 +20,7 @@ public final class KubeConfigService {
         Map<String, Object> cluster = new LinkedHashMap<>();
         cluster.put("server", config.getMasterUrl());
 
-        String caCertData = normalize(config.getCaCertData());
+        String caCertData = normalize(config.getCaCertData(), "caCertData");
         if (caCertData != null) {
             cluster.put("certificate-authority-data", caCertData);
         } else if (config.isTrustCerts()) {
@@ -35,12 +36,12 @@ public final class KubeConfigService {
             user.put("token", token);
         }
 
-        String clientCertData = normalize(config.getClientCertData());
+        String clientCertData = normalize(config.getClientCertData(), "clientCertData");
         if (clientCertData != null) {
             user.put("client-certificate-data", clientCertData);
         }
 
-        String clientKeyData = normalize(config.getClientKeyData());
+        String clientKeyData = normalize(config.getClientKeyData(), "clientKeyData");
         if (clientKeyData != null) {
             user.put("client-key-data", clientKeyData);
         }
@@ -83,13 +84,25 @@ public final class KubeConfigService {
             .replaceFirst(":\\d+$", "");
     }
 
-    private static String normalize(String data) {
+    private static String normalize(String data, String field) {
         if (data == null || data.isBlank()) {
             return null;
         }
 
-        return data.startsWith("-----BEGIN")
-            ? Base64.getEncoder().encodeToString(data.getBytes(java.nio.charset.StandardCharsets.UTF_8))
-            : data;
+        if (data.startsWith("-----BEGIN")) {
+            return Base64.getEncoder().encodeToString(data.getBytes(StandardCharsets.UTF_8));
+        }
+
+        String compact = data.replaceAll("\\s", "");
+        try {
+            Base64.getDecoder().decode(compact);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                "`connection." + field + "` is neither PEM (starting with `-----BEGIN`) nor valid base64, so it cannot be written to a kubeconfig.",
+                e
+            );
+        }
+
+        return compact;
     }
 }
