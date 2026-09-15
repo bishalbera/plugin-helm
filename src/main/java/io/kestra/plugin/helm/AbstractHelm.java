@@ -16,6 +16,7 @@ import io.kestra.core.models.tasks.Task;
 import io.kestra.core.models.tasks.runners.TaskRunner;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.plugin.helm.models.ChartSource;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
 import io.kestra.plugin.scripts.runner.docker.Docker;
@@ -36,6 +37,10 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 public abstract class AbstractHelm extends Task {
     private static final String DEFAULT_IMAGE = "alpine/helm:3.21.4";
+
+    protected static final String RELEASE_FILE = "release.json";
+    protected static final String MANIFEST_FILE = "manifest.yaml";
+    protected static final String INLINE_VALUES_FILE = ".kestra-values.yaml";
 
     protected static final ObjectMapper JSON = JacksonMapper.ofJson();
 
@@ -103,7 +108,52 @@ public abstract class AbstractHelm extends Task {
         }
     }
 
+    protected ChartArgs chartArgs(
+        RunContext runContext,
+        ChartSource chart,
+        Property<Map<String, Object>> values,
+        Property<List<String>> valuesFrom
+    ) throws Exception {
+        if (chart == null) {
+            throw new IllegalArgumentException("`chart` is required.");
+        }
+
+        ChartSource.ResolvedChart resolved = chart.resolve(runContext);
+
+        StringBuilder flags = new StringBuilder();
+        if (resolved.repository() != null) {
+            flags.append(" --repo ").append(quote(resolved.repository()));
+        }
+        if (resolved.version() != null) {
+            flags.append(" --version ").append(quote(resolved.version()));
+        }
+
+        List<String> references = new ArrayList<>();
+        for (String path : runContext.render(valuesFrom).asList(String.class)) {
+            flags.append(" --values ").append(quote(path));
+            references.add(path);
+        }
+
+        Map<String, Object> inline = runContext.render(values).asMap(String.class, Object.class);
+        if (!inline.isEmpty()) {
+            runContext.workingDir().createFile(
+                INLINE_VALUES_FILE,
+                JacksonMapper.ofYaml().writeValueAsBytes(inline)
+            );
+            flags.append(" --values {{ workingDir }}/").append(INLINE_VALUES_FILE);
+        }
+
+        return new ChartArgs(resolved.ref(), flags.toString(), resolved.reference(), references);
+    }
+
+    protected record ChartArgs(String ref, String flags, String reference, List<String> valuesReferences) {
+    }
+
     protected static String quote(String value) {
         return "'" + value.replace("'", "'\\''") + "'";
+    }
+
+    protected static String outputFile(String name) {
+        return "{{ outputFiles[\"" + name + "\"] }}";
     }
 }
