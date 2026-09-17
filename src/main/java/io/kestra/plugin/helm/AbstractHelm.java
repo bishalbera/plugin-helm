@@ -36,7 +36,7 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @NoArgsConstructor
 public abstract class AbstractHelm extends Task {
-    private static final String DEFAULT_IMAGE = "alpine/helm:3.21.4";
+    private static final String DEFAULT_IMAGE = "alpine/helm:4.3.0";
 
     protected static final String RELEASE_FILE = "release.json";
     protected static final String MANIFEST_FILE = "manifest.yaml";
@@ -58,7 +58,7 @@ public abstract class AbstractHelm extends Task {
 
     @Schema(
         title = "Container image",
-        description = "Image providing the `helm` binary. Defaults to `" + DEFAULT_IMAGE + "`. Pin a Helm 3 image; Helm 4 changes CLI and output semantics this plugin does not yet support."
+        description = "Image providing the `helm` binary. Defaults to `" + DEFAULT_IMAGE + "`. This plugin targets Helm 4; a Helm 3 image will reject flags such as `--rollback-on-failure` and `--force-replace`."
     )
     @Builder.Default
     @PluginProperty(group = "execution")
