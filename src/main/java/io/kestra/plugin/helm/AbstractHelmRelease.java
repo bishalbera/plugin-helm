@@ -83,21 +83,21 @@ public abstract class AbstractHelmRelease extends AbstractHelm {
         title = "Cluster name",
         description = "Recorded on emitted Assets as the `cluster` metadata key. Defaults to the host of the Kubernetes API server. Set it explicitly to match the name your team uses, e.g. `prod-eu`."
     )
-    @PluginProperty(group = "assets")
+    @PluginProperty(group = "advanced")
     protected Property<String> cluster;
 
     @Schema(
         title = "Region",
         description = "Recorded on emitted Assets as the `region` metadata key, e.g. `europe-west1`. Not inferred, because a cluster can span regions and reading node labels needs extra permissions."
     )
-    @PluginProperty(group = "assets")
+    @PluginProperty(group = "advanced")
     protected Property<String> region;
 
     @Schema(
         title = "Environment",
         description = "Recorded on emitted Assets as the `environment` metadata key, e.g. `production`."
     )
-    @PluginProperty(group = "assets")
+    @PluginProperty(group = "advanced")
     protected Property<String> environment;
 
     @Schema(
@@ -105,7 +105,7 @@ public abstract class AbstractHelmRelease extends AbstractHelm {
         description = "Narrows which kinds from the rendered manifest become `KubernetesResource` Assets. Defaults to the common workload, networking, config, and storage kinds."
     )
     @Builder.Default
-    @PluginProperty(group = "assets")
+    @PluginProperty(group = "advanced")
     protected Property<List<String>> resourceKinds = Property.ofValue(ManifestService.DEFAULT_RESOURCE_KINDS);
 
     @Schema(
@@ -113,7 +113,7 @@ public abstract class AbstractHelmRelease extends AbstractHelm {
         description = "Defaults to `WARN` so a successful deploy is never turned into a failure by an Asset problem."
     )
     @Builder.Default
-    @PluginProperty(group = "assets")
+    @PluginProperty(group = "advanced")
     protected Property<AssetFailureBehavior> assetFailureBehavior = Property.ofValue(AssetFailureBehavior.WARN);
 
     @Override
