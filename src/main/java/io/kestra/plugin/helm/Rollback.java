@@ -217,7 +217,7 @@ public class Rollback extends AbstractHelmRelease implements RunnableTask<Rollba
 
         ScriptOutput scriptOutput = execute(runContext, commands, List.of(RELEASE_FILE, MANIFEST_FILE), null);
 
-        Release release = JSON.readValue(readOutputFile(runContext, scriptOutput, RELEASE_FILE), Release.class);
+        Release release = parseRelease(readOutputFile(runContext, scriptOutput, RELEASE_FILE), RELEASE_FILE);
         String manifest = readOutputFile(runContext, scriptOutput, MANIFEST_FILE);
 
         List<ReleaseResource> resources = ManifestService.parse(

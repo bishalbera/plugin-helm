@@ -190,7 +190,7 @@ public class Uninstall extends AbstractHelmRelease implements RunnableTask<Unins
                 .build();
         }
 
-        Release release = JSON.readValue(releaseJson, Release.class);
+        Release release = parseRelease(releaseJson, RELEASE_FILE);
         String manifest = readOutputFile(runContext, scriptOutput, MANIFEST_FILE);
 
         List<ReleaseResource> resources = ManifestService.parse(

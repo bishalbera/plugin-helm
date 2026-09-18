@@ -17,6 +17,7 @@ import io.kestra.core.models.tasks.runners.TaskRunner;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.helm.models.ChartSource;
+import io.kestra.plugin.helm.models.Release;
 import io.kestra.plugin.scripts.exec.scripts.models.ScriptOutput;
 import io.kestra.plugin.scripts.exec.scripts.runners.CommandsWrapper;
 import io.kestra.plugin.scripts.runner.docker.Docker;
@@ -106,6 +107,21 @@ public abstract class AbstractHelm extends Task {
         try (InputStream stream = runContext.storage().getFile(uri)) {
             return new String(stream.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    // Helm writes "Pulled:" and "Digest:" to stdout ahead of the JSON when a chart comes from an
+    // OCI registry, so the captured file is not valid JSON on its own. Parsing from the first
+    // brace keeps that banner out without discarding anything Helm meant as output.
+    protected static Release parseRelease(String raw, String fileName) throws Exception {
+        int start = raw.indexOf('{');
+
+        if (start < 0) {
+            throw new IllegalStateException(
+                "Helm returned no JSON in '" + fileName + "'. Output was: " + raw.strip()
+            );
+        }
+
+        return JSON.readValue(raw.substring(start), Release.class);
     }
 
     protected ChartArgs chartArgs(

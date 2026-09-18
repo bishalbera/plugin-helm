@@ -284,7 +284,7 @@ public class Upgrade extends AbstractHelmRelease implements RunnableTask<Upgrade
 
         ScriptOutput scriptOutput = execute(runContext, commands, outputFiles, null);
 
-        Release release = JSON.readValue(readOutputFile(runContext, scriptOutput, RELEASE_FILE), Release.class);
+        Release release = parseRelease(readOutputFile(runContext, scriptOutput, RELEASE_FILE), RELEASE_FILE);
 
         String manifest = rDryRun.enabled()
             ? release.manifest()
