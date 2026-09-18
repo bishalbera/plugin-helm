@@ -1,12 +1,13 @@
 package io.kestra.plugin.helm;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import io.fabric8.kubernetes.client.Config;
 
 import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.assets.AssetsDeclaration;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
@@ -116,13 +117,6 @@ public abstract class AbstractHelmRelease extends AbstractHelm {
     @PluginProperty(group = "advanced")
     protected Property<AssetFailureBehavior> assetFailureBehavior = Property.ofValue(AssetFailureBehavior.WARN);
 
-    @Override
-    public AssetsDeclaration getAssets() {
-        AssetsDeclaration declared = super.getAssets();
-
-        return declared != null ? declared : new AssetsDeclaration(Property.ofValue(true), null, null);
-    }
-
     protected String kubeArgs(RunContext runContext) throws Exception {
         String rKubeconfig = runContext.render(this.kubeconfig).as(String.class).orElse(null);
 
@@ -144,8 +138,13 @@ public abstract class AbstractHelmRelease extends AbstractHelm {
         StringBuilder args = new StringBuilder();
 
         if (content != null) {
-            runContext.workingDir().createFile(KUBECONFIG_FILE, content.getBytes(StandardCharsets.UTF_8));
-            args.append(" --kubeconfig {{ workingDir }}/").append(KUBECONFIG_FILE);
+            // Written once per run: a task that builds several commands calls this more than once,
+            // and createFile throws if the file is already there.
+            Path kubeConfigPath = runContext.workingDir().resolve(Path.of(KUBECONFIG_FILE));
+            if (!Files.exists(kubeConfigPath)) {
+                runContext.workingDir().createFile(KUBECONFIG_FILE, content.getBytes(StandardCharsets.UTF_8));
+            }
+            args.append(" --kubeconfig ").append(KUBECONFIG_FILE);
         }
 
         runContext.render(this.kubeContext).as(String.class)

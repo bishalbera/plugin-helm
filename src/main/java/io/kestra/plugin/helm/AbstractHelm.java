@@ -140,7 +140,7 @@ public abstract class AbstractHelm extends Task {
                 INLINE_VALUES_FILE,
                 JacksonMapper.ofYaml().writeValueAsBytes(inline)
             );
-            flags.append(" --values {{ workingDir }}/").append(INLINE_VALUES_FILE);
+            flags.append(" --values ").append(INLINE_VALUES_FILE);
         }
 
         return new ChartArgs(resolved.ref(), flags.toString(), resolved.reference(), references);
@@ -154,6 +154,6 @@ public abstract class AbstractHelm extends Task {
     }
 
     protected static String outputFile(String name) {
-        return "{{ outputFiles[\"" + name + "\"] }}";
+        return name;
     }
 }

@@ -229,9 +229,11 @@ public class Upgrade extends AbstractHelmRelease implements RunnableTask<Upgrade
 
         ChartArgs chartArgs = chartArgs(runContext, this.chart, this.values, this.valuesFrom);
 
+        String kubeArgs = kubeArgs(runContext);
+
         StringBuilder flags = new StringBuilder();
         flags.append(" --namespace ").append(quote(rNamespace));
-        flags.append(kubeArgs(runContext));
+        flags.append(kubeArgs);
         flags.append(chartArgs.flags());
 
         if (runContext.render(this.install).as(Boolean.class).orElse(true)) {
@@ -275,7 +277,7 @@ public class Upgrade extends AbstractHelmRelease implements RunnableTask<Upgrade
         if (!rDryRun.enabled()) {
             commands.add(
                 "helm get manifest " + quote(rRelease) + " --namespace " + quote(rNamespace)
-                    + kubeArgs(runContext) + " > " + outputFile(MANIFEST_FILE)
+                    + kubeArgs + " > " + outputFile(MANIFEST_FILE)
             );
             outputFiles.add(MANIFEST_FILE);
         }
