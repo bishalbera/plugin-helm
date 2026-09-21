@@ -21,6 +21,7 @@ import io.kestra.plugin.helm.models.WaitStrategy;
 import io.kestra.plugin.scripts.runner.docker.Docker;
 
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -60,15 +61,18 @@ class HelmLifecycleTest {
     @Inject
     private RunContextFactory runContextFactory;
 
-    // TestsUtils.mockRunContext rather than runContextFactory.of(): only the former runs the
-    // run-context initializer, and the Docker task runner renders on a clone that is left
-    // half-built without it, failing with a NullPointerException on a null Optional.
-    private RunContext runContextFor(Task task) {
+    @BeforeEach
+    void requireCluster() {
         assumeTrue(
             Files.exists(KUBECONFIG),
             "No cluster kubeconfig at " + KUBECONFIG + "; run .github/setup-unit.sh first"
         );
+    }
 
+    // TestsUtils.mockRunContext rather than runContextFactory.of(): only the former runs the
+    // run-context initializer, and the Docker task runner renders on a clone that is left
+    // half-built without it, failing with a NullPointerException on a null Optional.
+    private RunContext runContextFor(Task task) {
         return TestsUtils.mockRunContext(runContextFactory, task, Map.of());
     }
 
@@ -99,7 +103,7 @@ class HelmLifecycleTest {
         String release = "it-" + IdUtils.create().toLowerCase();
 
         Upgrade upgrade = Upgrade.builder()
-            .id("upgrade")
+            .id(IdUtils.create())
             .type(Upgrade.class.getName())
             .releaseName(Property.ofValue(release))
             .namespace(Property.ofValue(NAMESPACE))
@@ -130,7 +134,7 @@ class HelmLifecycleTest {
         assertThat(installed.getResources().getFirst().name(), is(release + "-config"));
 
         Status statusTask = Status.builder()
-            .id("status")
+            .id(IdUtils.create())
             .type(Status.class.getName())
             .releaseName(Property.ofValue(release))
             .namespace(Property.ofValue(NAMESPACE))
@@ -144,8 +148,40 @@ class HelmLifecycleTest {
         assertThat(status.getStatus(), is("deployed"));
         assertThat(status.getResources(), hasSize(1));
 
+        Upgrade second = Upgrade.builder()
+            .id(IdUtils.create())
+            .type(Upgrade.class.getName())
+            .releaseName(Property.ofValue(release))
+            .namespace(Property.ofValue(NAMESPACE))
+            .wait(Property.ofValue(WaitStrategy.WATCHER))
+            .chart(ChartSource.builder().path(Property.ofValue("hello")).build())
+            .values(Property.ofValue(Map.of("message", "second-revision")))
+            .kubeconfig(Property.ofValue(kubeconfig()))
+            .taskRunner(taskRunner())
+            .build();
+
+        assertThat(second.run(runContextWithChart(second)).getRevision(), is(2));
+
+        Rollback rollbackTask = Rollback.builder()
+            .id(IdUtils.create())
+            .type(Rollback.class.getName())
+            .releaseName(Property.ofValue(release))
+            .namespace(Property.ofValue(NAMESPACE))
+            .revision(Property.ofValue(1))
+            .wait(Property.ofValue(WaitStrategy.WATCHER))
+            .kubeconfig(Property.ofValue(kubeconfig()))
+            .taskRunner(taskRunner())
+            .build();
+
+        Rollback.Output rolledBack = rollbackTask.run(runContextFor(rollbackTask));
+
+        // Helm records a rollback as a new revision rather than moving back to the old number.
+        assertThat(rolledBack.getRevision(), is(3));
+        assertThat(rolledBack.getStatus(), is("deployed"));
+        assertThat(rolledBack.getResources(), hasSize(1));
+
         Uninstall uninstall = Uninstall.builder()
-            .id("uninstall")
+            .id(IdUtils.create())
             .type(Uninstall.class.getName())
             .releaseName(Property.ofValue(release))
             .namespace(Property.ofValue(NAMESPACE))
@@ -161,7 +197,7 @@ class HelmLifecycleTest {
         assertThat(removed.getResources(), hasSize(1));
 
         Uninstall missingTask = Uninstall.builder()
-            .id("uninstall-missing")
+            .id(IdUtils.create())
             .type(Uninstall.class.getName())
             .releaseName(Property.ofValue(release))
             .namespace(Property.ofValue(NAMESPACE))
@@ -179,7 +215,7 @@ class HelmLifecycleTest {
     @Test
     void shouldRenderAChartWithoutTouchingTheCluster() throws Exception {
         Template template = Template.builder()
-            .id("template")
+            .id(IdUtils.create())
             .type(Template.class.getName())
             .releaseName(Property.ofValue("render"))
             .namespace(Property.ofValue(NAMESPACE))

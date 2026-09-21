@@ -80,7 +80,7 @@ public final class AssetService {
         }
     }
 
-    private static Asset releaseAsset(Descriptor descriptor) {
+    static Asset releaseAsset(Descriptor descriptor) {
         Map<String, Object> metadata = baseMetadata(descriptor);
         put(metadata, "valuesSource", descriptor.valuesReferences() == null || descriptor.valuesReferences().isEmpty()
             ? null
@@ -96,7 +96,7 @@ public final class AssetService {
         return descriptor.deleted() ? asset.toDeleted() : asset;
     }
 
-    private static Asset resourceAsset(Descriptor descriptor, ReleaseResource resource) {
+    static Asset resourceAsset(Descriptor descriptor, ReleaseResource resource) {
         String namespace = resource.namespace() != null ? resource.namespace() : descriptor.namespace();
 
         Map<String, Object> metadata = baseMetadata(descriptor);
@@ -143,7 +143,7 @@ public final class AssetService {
             .orElse("unknown");
     }
 
-    private static String id(String raw) {
+    static String id(String raw) {
         String sanitized = raw.replaceAll("[^a-zA-Z0-9._:-]", "-");
 
         if (!sanitized.isEmpty() && !Character.isLetterOrDigit(sanitized.charAt(0))) {
