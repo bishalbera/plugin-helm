@@ -111,7 +111,7 @@ public abstract class AbstractHelmRelease extends AbstractHelm {
 
     @Schema(
         title = "Behaviour when Asset emission fails",
-        description = "Defaults to `WARN` so a successful deploy is never turned into a failure by an Asset problem."
+        description = "One of `WARN` (log the problem and let the task succeed) or `FAIL` (fail the task). Defaults to `WARN` so a successful deploy is never turned into a failure by an Asset problem."
     )
     @Builder.Default
     @PluginProperty(group = "advanced")

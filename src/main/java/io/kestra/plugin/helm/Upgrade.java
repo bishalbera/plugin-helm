@@ -176,7 +176,7 @@ public class Upgrade extends AbstractHelmRelease implements RunnableTask<Upgrade
 
     @Schema(
         title = "Readiness strategy",
-        description = "Adds `--wait`. Leave unset for Helm's default, which waits for hooks only and returns before workloads are ready. Use `WATCHER` when a downstream task depends on the new pods actually serving."
+        description = "Adds `--wait`. One of `WATCHER` (wait until all resources are ready), `HOOK_ONLY` (wait for hooks only) or `LEGACY` (Helm's legacy readiness polling). Leave unset for Helm's own default of `HOOK_ONLY`, which returns before workloads are ready; use `WATCHER` when a downstream task depends on the new pods actually serving."
     )
     @PluginProperty(group = "main")
     private Property<WaitStrategy> wait;
@@ -214,7 +214,7 @@ public class Upgrade extends AbstractHelmRelease implements RunnableTask<Upgrade
 
     @Schema(
         title = "Simulate instead of applying",
-        description = "Adds `--dry-run`. `SERVER` validates the rendered manifests against the API server, which is what distinguishes this from the `Template` task. A dry run emits no Assets."
+        description = "Adds `--dry-run`. One of `NONE` (apply for real), `CLIENT` (simulate without contacting the cluster) or `SERVER` (validate the rendered manifests against the API server). `SERVER` is what distinguishes this from the `Template` task. A dry run emits no Assets."
     )
     @Builder.Default
     @PluginProperty(group = "main")

@@ -116,8 +116,11 @@ public abstract class AbstractHelm extends Task {
         int start = raw.indexOf('{');
 
         if (start < 0) {
+            // Capped: Helm echoes rendered values on some failures, which can include a secret.
+            String output = raw.strip();
             throw new IllegalStateException(
-                "Helm returned no JSON in '" + fileName + "'. Output was: " + raw.strip()
+                "Helm returned no JSON in '" + fileName + "'. Output was: "
+                    + (output.length() > 500 ? output.substring(0, 500) + "... (truncated)" : output)
             );
         }
 

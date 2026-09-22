@@ -103,7 +103,7 @@ public class Rollback extends AbstractHelmRelease implements RunnableTask<Rollba
 
     @Schema(
         title = "Readiness strategy",
-        description = "Adds `--wait`. Use `WATCHER` when a downstream task depends on the restored pods actually serving."
+        description = "Adds `--wait`. One of `WATCHER` (wait until all resources are ready), `HOOK_ONLY` (wait for hooks only) or `LEGACY` (Helm's legacy readiness polling). Leave unset for Helm's own default of `HOOK_ONLY`; use `WATCHER` when a downstream task depends on the restored pods actually serving."
     )
     @PluginProperty(group = "main")
     private Property<WaitStrategy> wait;
@@ -149,7 +149,7 @@ public class Rollback extends AbstractHelmRelease implements RunnableTask<Rollba
 
     @Schema(
         title = "Simulate instead of rolling back",
-        description = "Adds `--dry-run`. Nothing changes on the cluster, no Assets are emitted, and the release state is not re-read."
+        description = "Adds `--dry-run`. One of `NONE` (roll back for real), `CLIENT` (simulate without contacting the cluster) or `SERVER` (validate against the API server). When simulating, nothing changes on the cluster, no Assets are emitted, and the release state is not re-read."
     )
     @Builder.Default
     @PluginProperty(group = "main")

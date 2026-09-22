@@ -100,14 +100,14 @@ public class Uninstall extends AbstractHelmRelease implements RunnableTask<Unins
 
     @Schema(
         title = "Readiness strategy",
-        description = "Adds `--wait`. Combine with `cascade: FOREGROUND` to return only once resources with finalizers are actually gone."
+        description = "Adds `--wait`. One of `WATCHER` (wait until resources are gone), `HOOK_ONLY` (wait for hooks only) or `LEGACY` (Helm's legacy polling). Combine `WATCHER` with `cascade: FOREGROUND` to return only once resources with finalizers are actually gone."
     )
     @PluginProperty(group = "main")
     private Property<WaitStrategy> wait;
 
     @Schema(
         title = "Deletion cascading strategy",
-        description = "Adds `--cascade`. Helm's default is `BACKGROUND`."
+        description = "Adds `--cascade`. One of `BACKGROUND` (delete dependents in the background, Helm's default), `ORPHAN` (leave dependents in place) or `FOREGROUND` (delete dependents first; combine with `wait` so finalizers complete before the task returns)."
     )
     @PluginProperty(group = "main")
     private Property<CascadeStrategy> cascade;
