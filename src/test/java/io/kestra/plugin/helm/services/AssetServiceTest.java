@@ -5,12 +5,16 @@ import java.util.Map;
 
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.assets.Asset;
+import io.kestra.core.runners.AssetEmit;
+import io.kestra.core.runners.AssetEmitter;
+import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.plugin.helm.models.AssetFailureBehavior;
 import io.kestra.plugin.helm.models.ReleaseResource;
 
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
@@ -19,6 +23,15 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.hasKey;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @KestraTest
 class AssetServiceTest {
@@ -149,5 +162,59 @@ class AssetServiceTest {
         assertDoesNotThrow(() ->
             AssetService.emit(runContextFactory.of(), descriptor(false), AssetFailureBehavior.FAIL)
         );
+    }
+
+    @Test
+    void shouldNotCollideWhenSegmentsContainTheJoinSeparator() {
+        // "prod:eu" + "web" and "prod" + "eu:web" must not produce the same id.
+        AssetService.Descriptor clusterHasColon = new AssetService.Descriptor(
+            "prod:eu", null, null, "nginx", "web", 1, null, null, null, null, null, null, List.of(), false
+        );
+        AssetService.Descriptor namespaceHasColon = new AssetService.Descriptor(
+            "prod", null, null, "nginx", "eu:web", 1, null, null, null, null, null, null, List.of(), false
+        );
+
+        assertThat(
+            AssetService.releaseAsset(clusterHasColon).getId(),
+            not(is(AssetService.releaseAsset(namespaceHasColon).getId()))
+        );
+    }
+
+    @Test
+    void shouldNotClaimSuccessWhenEmissionIsSilentlyDropped() throws Exception {
+        // On EE with assets.enableAuto unset, emit() is a no-op that neither throws nor records
+        // anything. Stubbed because the open-source emitter throws instead of dropping quietly.
+        AssetEmitter dropping = mock(AssetEmitter.class);
+        when(dropping.emitted()).thenReturn(List.of());
+
+        Logger logger = mock(Logger.class);
+
+        RunContext runContext = mock(RunContext.class);
+        when(runContext.assets()).thenReturn(dropping);
+        when(runContext.logger()).thenReturn(logger);
+
+        AssetService.emit(runContext, descriptor(false), AssetFailureBehavior.WARN);
+
+        verify(dropping, times(2)).emit(any());
+        verify(logger, never()).info(anyString(), any(), any());
+        verify(logger).debug(contains("assets.enableAuto"), eq("nginx"));
+    }
+
+    @Test
+    void shouldReportSuccessOnlyWhenTheEmitterActuallyGrew() throws Exception {
+        AssetEmitter recording = mock(AssetEmitter.class);
+        when(recording.emitted())
+            .thenReturn(List.of())
+            .thenReturn(List.of(new AssetEmit(List.of(), List.of()), new AssetEmit(List.of(), List.of())));
+
+        Logger logger = mock(Logger.class);
+
+        RunContext runContext = mock(RunContext.class);
+        when(runContext.assets()).thenReturn(recording);
+        when(runContext.logger()).thenReturn(logger);
+
+        AssetService.emit(runContext, descriptor(false), AssetFailureBehavior.WARN);
+
+        verify(logger).info(contains("Emitted"), any(), any());
     }
 }

@@ -16,6 +16,7 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.plugin.helm.models.ChartSource;
+import io.kestra.plugin.helm.models.DryRunMode;
 import io.kestra.plugin.helm.models.ReleaseResource;
 import io.kestra.plugin.helm.models.WaitStrategy;
 import io.kestra.plugin.scripts.runner.docker.Docker;
@@ -230,5 +231,78 @@ class HelmLifecycleTest {
         assertThat(rendered.getResources(), hasSize(1));
         assertThat(rendered.getResources().getFirst().kind(), is("ConfigMap"));
         assertThat(rendered.getChartReference(), is("hello"));
+    }
+
+    @Test
+    void shouldSimulateARollbackWithoutChangingTheRelease() throws Exception {
+        String release = "dr-" + IdUtils.create().toLowerCase();
+
+        Upgrade install = Upgrade.builder()
+            .id(IdUtils.create())
+            .type(Upgrade.class.getName())
+            .releaseName(Property.ofValue(release))
+            .namespace(Property.ofValue(NAMESPACE))
+            .createNamespace(Property.ofValue(true))
+            .wait(Property.ofValue(WaitStrategy.WATCHER))
+            .chart(ChartSource.builder().path(Property.ofValue("hello")).build())
+            .values(Property.ofValue(Map.of("message", "first")))
+            .kubeconfig(Property.ofValue(kubeconfig()))
+            .taskRunner(taskRunner())
+            .build();
+        install.run(runContextWithChart(install));
+
+        Upgrade second = Upgrade.builder()
+            .id(IdUtils.create())
+            .type(Upgrade.class.getName())
+            .releaseName(Property.ofValue(release))
+            .namespace(Property.ofValue(NAMESPACE))
+            .wait(Property.ofValue(WaitStrategy.WATCHER))
+            .chart(ChartSource.builder().path(Property.ofValue("hello")).build())
+            .values(Property.ofValue(Map.of("message", "second")))
+            .kubeconfig(Property.ofValue(kubeconfig()))
+            .taskRunner(taskRunner())
+            .build();
+        assertThat(second.run(runContextWithChart(second)).getRevision(), is(2));
+
+        Rollback simulated = Rollback.builder()
+            .id(IdUtils.create())
+            .type(Rollback.class.getName())
+            .releaseName(Property.ofValue(release))
+            .namespace(Property.ofValue(NAMESPACE))
+            .revision(Property.ofValue(1))
+            .dryRun(Property.ofValue(DryRunMode.CLIENT))
+            .kubeconfig(Property.ofValue(kubeconfig()))
+            .taskRunner(taskRunner())
+            .build();
+
+        Rollback.Output output = simulated.run(runContextFor(simulated));
+
+        // The dry-run branch skips the state re-read, so it echoes the requested revision
+        // rather than reporting one read back from the cluster.
+        assertThat(output.getReleaseName(), is(release));
+        assertThat(output.getRevision(), is(1));
+        assertThat(output.getResources(), is(List.of()));
+
+        Status after = Status.builder()
+            .id(IdUtils.create())
+            .type(Status.class.getName())
+            .releaseName(Property.ofValue(release))
+            .namespace(Property.ofValue(NAMESPACE))
+            .kubeconfig(Property.ofValue(kubeconfig()))
+            .taskRunner(taskRunner())
+            .build();
+
+        // Still on revision 2: the simulation must not have moved the release.
+        assertThat(after.run(runContextFor(after)).getRevision(), is(2));
+
+        Uninstall cleanup = Uninstall.builder()
+            .id(IdUtils.create())
+            .type(Uninstall.class.getName())
+            .releaseName(Property.ofValue(release))
+            .namespace(Property.ofValue(NAMESPACE))
+            .kubeconfig(Property.ofValue(kubeconfig()))
+            .taskRunner(taskRunner())
+            .build();
+        cleanup.run(runContextFor(cleanup));
     }
 }
