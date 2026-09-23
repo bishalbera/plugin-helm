@@ -149,7 +149,31 @@ diffed against each other.
 
 `Upgrade`, `Rollback`, `Status`, and `Uninstall` register the release and the resources it manages
 as Assets, with the chart and values files as inputs. `Uninstall` soft-deletes them rather than
-leaving them orphaned.
+leaving them orphaned. There are no built-in `HelmRelease` or `KubernetesResource` asset classes in
+Kestra today, so these are `io.kestra.core.models.assets.Custom` assets typed
+`io.kestra.plugin.helm.assets.Release` and `io.kestra.plugin.helm.assets.KubernetesResource`.
+
+**On the Enterprise Edition, add `assets: { enableAuto: true }` to the task**, or nothing is
+registered:
+
+```yaml
+- id: deploy
+  type: io.kestra.plugin.helm.Upgrade
+  releaseName: nginx
+  namespace: web
+  chart:
+    repository: https://charts.bitnami.com/bitnami
+    name: nginx
+    version: "15.4.2"
+  assets:
+    enableAuto: true
+```
+
+`enableAuto` is the switch that controls whether emitted assets are captured at all, not only
+whether dynamically-referenced assets get auto-detected — a task without this block runs and
+returns successfully, and this plugin cannot default it to `true` for you, because a non-null
+`assets` block on a task fails flow validation on the open-source edition. Without it, the task
+still calls the asset emission API internally, but nothing reaches the catalog.
 
 Set `cluster`, `region`, and `environment` to label them meaningfully — `cluster` falls back to the
 API server host, and the other two are not inferred. Use `resourceKinds` to narrow which kinds are
@@ -185,3 +209,6 @@ plugin reads the result back, so a failure during that read leaves the deploy in
 address of `127.0.0.1` refers to that container rather than your host. Use an address reachable
 from inside it, and where the cluster runs in Docker, put the container on the same network with
 the task runner's `networkMode`.
+
+**No Assets show up on the Enterprise Edition even though the task succeeded.** Add
+`assets: { enableAuto: true }` to the task — see [Assets](#assets) above.

@@ -15,8 +15,8 @@ import io.kestra.plugin.helm.models.AssetFailureBehavior;
 import io.kestra.plugin.helm.models.ReleaseResource;
 
 public final class AssetService {
-    public static final String RELEASE_TYPE = "io.kestra.plugin.ee.assets.HelmRelease";
-    public static final String RESOURCE_TYPE = "io.kestra.plugin.ee.assets.KubernetesResource";
+    public static final String RELEASE_TYPE = "io.kestra.plugin.helm.assets.Release";
+    public static final String RESOURCE_TYPE = "io.kestra.plugin.helm.assets.KubernetesResource";
     public static final String FILE_TYPE = "io.kestra.plugin.ee.assets.File";
     public static final String CHART_TYPE = "io.kestra.plugin.helm.assets.Chart";
 
@@ -43,6 +43,9 @@ public final class AssetService {
 
     public static void emit(RunContext runContext, Descriptor descriptor, AssetFailureBehavior behavior) throws Exception {
         try {
+            var emitter = runContext.assets();
+            int before = emitter.emitted().size();
+
             Asset release = releaseAsset(descriptor);
 
             List<AssetIdentifier> inputs = new ArrayList<>();
@@ -55,21 +58,31 @@ public final class AssetService {
                     .forEach(inputs::add);
             }
 
-            runContext.assets().emit(new AssetEmit(inputs, List.of(release)));
+            emitter.emit(new AssetEmit(inputs, List.of(release)));
 
             List<Asset> resources = descriptor.resources() == null ? List.of() : descriptor.resources().stream()
                 .map(resource -> resourceAsset(descriptor, resource))
                 .toList();
 
             if (!resources.isEmpty()) {
-                runContext.assets().emit(new AssetEmit(List.of(AssetIdentifier.of(release)), resources));
+                emitter.emit(new AssetEmit(List.of(AssetIdentifier.of(release)), resources));
             }
 
-            runContext.logger().info(
-                "Emitted {} Helm asset(s) for release '{}'",
-                resources.size() + 1,
-                descriptor.releaseName()
-            );
+            // emit() is a silent no-op unless assets.enableAuto is set on the task (the flag backs the
+            // whole AssetEmitter, not only auto-detection of dynamically-referenced assets), so check
+            // emitted() actually grew before claiming success.
+            if (emitter.emitted().size() > before) {
+                runContext.logger().info(
+                    "Emitted {} Helm asset(s) for release '{}'",
+                    resources.size() + 1,
+                    descriptor.releaseName()
+                );
+            } else {
+                runContext.logger().debug(
+                    "Helm assets for release '{}' were not recorded — set `assets.enableAuto: true` on this task to register them",
+                    descriptor.releaseName()
+                );
+            }
         } catch (UnsupportedOperationException e) {
             runContext.logger().debug("Asset emission is not supported in this edition, skipping.");
         } catch (Exception e) {
