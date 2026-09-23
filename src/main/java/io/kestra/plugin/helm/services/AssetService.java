@@ -15,8 +15,8 @@ import io.kestra.plugin.helm.models.AssetFailureBehavior;
 import io.kestra.plugin.helm.models.ReleaseResource;
 
 public final class AssetService {
-    public static final String RELEASE_TYPE = "io.kestra.plugin.helm.assets.Release";
-    public static final String RESOURCE_TYPE = "io.kestra.plugin.helm.assets.KubernetesResource";
+    public static final String RELEASE_TYPE = "io.kestra.plugin.ee.assets.HelmRelease";
+    public static final String RESOURCE_TYPE = "io.kestra.plugin.ee.assets.KubernetesResource";
     public static final String FILE_TYPE = "io.kestra.plugin.ee.assets.File";
     public static final String CHART_TYPE = "io.kestra.plugin.helm.assets.Chart";
 

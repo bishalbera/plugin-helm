@@ -149,9 +149,11 @@ diffed against each other.
 
 `Upgrade`, `Rollback`, `Status`, and `Uninstall` register the release and the resources it manages
 as Assets, with the chart and values files as inputs. `Uninstall` soft-deletes them rather than
-leaving them orphaned. There are no built-in `HelmRelease` or `KubernetesResource` asset classes in
-Kestra today, so these are `io.kestra.core.models.assets.Custom` assets typed
-`io.kestra.plugin.helm.assets.Release` and `io.kestra.plugin.helm.assets.KubernetesResource`.
+leaving them orphaned. `HelmRelease` and `KubernetesResource` aren't typed asset classes yet, so
+these are `io.kestra.core.models.assets.Custom` assets, with their `type` string
+(`io.kestra.plugin.ee.assets.HelmRelease` / `io.kestra.plugin.ee.assets.KubernetesResource`) chosen
+to match the typed classes those would become if `core-ee` adds them later — the type string stays
+identical either way, so nothing in the catalog needs to change on that swap.
 
 **On the Enterprise Edition, add `assets: { enableAuto: true }` to the task**, or nothing is
 registered:
