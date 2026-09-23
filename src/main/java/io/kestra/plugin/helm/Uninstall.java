@@ -82,6 +82,9 @@ import lombok.experimental.SuperBuilder;
     }
 )
 public class Uninstall extends AbstractHelmRelease implements RunnableTask<Uninstall.Output> {
+    private static final String STDERR_FILE = ".helm-stderr";
+    private static final String NOT_FOUND_MESSAGE = "release: not found";
+
     @Schema(
         title = "Retain release history",
         description = "Adds `--keep-history`. Removes the resources but keeps the release history, so the release can still be inspected and rolled back."
@@ -168,7 +171,13 @@ public class Uninstall extends AbstractHelmRelease implements RunnableTask<Unins
 
         // `helm uninstall` has no JSON output, and after it runs the release is gone, so the state
         // needed to soft-delete Assets has to be captured first.
-        String tolerate = rIgnoreNotFound ? " || true" : "";
+        //
+        // Tolerating those reads with `|| true` would also swallow a bad kubeconfig, an unreachable
+        // API server or an RBAC denial, reporting a broken teardown as a successful one, so only
+        // Helm's own "release: not found" is accepted.
+        String tolerate = rIgnoreNotFound
+            ? " 2> " + STDERR_FILE + " || grep -q " + quote(NOT_FOUND_MESSAGE) + " " + STDERR_FILE
+            : "";
 
         List<String> commands = new ArrayList<>();
         commands.add("helm status " + quote(rRelease) + baseFlags + " --output json > " + outputFile(RELEASE_FILE) + tolerate);

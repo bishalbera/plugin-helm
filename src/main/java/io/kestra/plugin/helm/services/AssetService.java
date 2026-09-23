@@ -149,11 +149,17 @@ public final class AssetService {
         }
     }
 
+    // Each segment is length-prefixed because the parts are free text: joining "prod:eu" + "web"
+    // and "prod" + "eu:web" on a bare separator yields the same id, so two unrelated releases
+    // would share one catalog entry.
     private static String join(String... parts) {
-        return Stream.of(parts)
+        String joined = Stream.of(parts)
             .filter(part -> part != null && !part.isBlank())
+            .map(part -> part.length() + "." + part)
             .reduce((left, right) -> left + ":" + right)
-            .orElse("unknown");
+            .orElse("");
+
+        return joined.isEmpty() ? "unknown" : joined;
     }
 
     static String id(String raw) {

@@ -87,7 +87,7 @@ public abstract class AbstractHelm extends Task {
 
         return new CommandsWrapper(runContext)
             .withTaskRunner(this.taskRunner)
-            .withContainerImage(runContext.render(this.containerImage).as(String.class).orElseThrow())
+            .withContainerImage(runContext.render(this.containerImage).as(String.class).orElse(DEFAULT_IMAGE))
             .withEnv(environment)
             .withInterpreter(Property.ofValue(List.of("/bin/sh", "-c")))
             .withCommands(Property.ofValue(commands))
