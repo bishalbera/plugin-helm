@@ -181,6 +181,27 @@ Set `cluster`, `region`, and `environment` to label them meaningfully — `clust
 API server host, and the other two are not inferred. Use `resourceKinds` to narrow which kinds are
 registered.
 
+**Set `cluster` explicitly when you manage more than one cluster.** The fallback is the API server
+hostname, so two clusters reached through the same load balancer or ingress hostname produce the
+same Asset identity, and a release deployed to each collapses into a single catalog entry. An
+explicit name per cluster keeps them distinct:
+
+```yaml
+- id: deploy_eu
+  type: io.kestra.plugin.helm.Upgrade
+  cluster: prod-eu
+  region: europe-west1
+  environment: production
+  # ...
+
+- id: deploy_us
+  type: io.kestra.plugin.helm.Upgrade
+  cluster: prod-us
+  region: us-east1
+  environment: production
+  # ...
+```
+
 Assets are an Enterprise Edition feature. On the open-source edition the tasks run normally and
 emission is skipped. Asset emission failures never fail an otherwise successful deploy; set
 `assetFailureBehavior: FAIL` to change that.
