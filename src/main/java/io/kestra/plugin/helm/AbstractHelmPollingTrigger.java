@@ -1,5 +1,7 @@
 package io.kestra.plugin.helm;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.time.Duration;
 
 import io.fabric8.kubernetes.client.Config;
@@ -80,7 +82,8 @@ public abstract class AbstractHelmPollingTrigger extends AbstractTrigger impleme
         }
 
         if (rKubeconfig != null) {
-            return Config.fromKubeconfig(rKubeContext, rKubeconfig, null);
+            Path file = runContext.workingDir().createTempFile(rKubeconfig.getBytes(StandardCharsets.UTF_8), ".kubeconfig");
+            return Config.fromKubeconfig(rKubeContext, file.toFile());
         }
 
         if (this.connection != null) {
